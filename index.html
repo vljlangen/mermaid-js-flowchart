@@ -252,7 +252,7 @@ function fixInvisibleX(svgElement) {
             const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
             tspan.textContent = line;
             tspan.setAttribute("x", 0);
-            tspan.setAttribute("dy", idx === 0 ? "1em" : "1.2em");
+            tspan.setAttribute("dy", idx === 0 ? "0.7em" : "1.2em");
             textEl.appendChild(tspan);
         });
 
@@ -274,27 +274,33 @@ function centerAllText(svgElement) {
         const rect = parentNode.querySelector("rect");
         if (!rect) return;
 
-        const rectWidth = parseFloat(rect.getAttribute("width") || 0);
+        const rectHeight = parseFloat(rect.getAttribute("height") || 0);
 
-        // Find bounding box of text inside labelG
         const textEl = labelG.querySelector("text");
         if (!textEl) return;
 
         const textBBox = textEl.getBBox();
-        const textWidth = textBBox.width;
 
-        // Calculate new X offset so text is centered
+        // Parse current transform
         const currentTransform = labelG.getAttribute("transform") || "translate(0,0)";
         const match = currentTransform.match(/translate\((-?\d+\.?\d*),\s*(-?\d+\.?\d*)\)/);
         if (!match) return;
         const [, oldX, oldY] = match.map(Number);
 
-        const newX = -(textWidth / 2);
-        labelG.setAttribute("transform", `translate(${newX}, ${oldY})`);
+        // Horizontal centering
+        const newX = -(textBBox.width / 2);
+
+        // Keep original Y, but nudge so block is vertically centered
+        const textBlockHeight = textBBox.height;
+        const newY = oldY + (rectHeight - textBlockHeight) / 2 - (rectHeight / 2);
+
+        labelG.setAttribute("transform", `translate(${newX}, ${newY})`);
     });
 
     return svgElement;
 }
+
+
 
 
 
