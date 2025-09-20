@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowchartWizard JS + Mermaid Debug Padding</title>
+
+<!-- Mermaid -->
+<script type="module">
+  import mermaid from 'https://unpkg.com/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: false });
+  window.mermaid = mermaid;
+</script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 2rem;
+}
+textarea {
+    width: 100%;
+    font-family: monospace;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+button {
+    margin: 0.2rem;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+}
+#flow-output {
+    margin-top: 1.5rem;
+    border: 1px solid #ccc;
+    padding: 1rem;
+    background-color: #f9f9f9;
+}
+</style>
+</head>
+<body>
+
+<h2>FlowchartWizard JS + Mermaid Debug Padding</h2>
+
+<p>Enter each step of your flowchart. Use empty lines to separate nodes. Use line breaks (<kbd>Enter</kbd>) inside a node for multi-line text.</p>
+<textarea id="flow-input" rows="10" placeholder="Node 1 line 1
+Node 1 line 2
+
+Node 2
+
+Node 3 line 1
+Node 3 line 2"></textarea>
+
+<div>
+    <label>
+        <input type="checkbox" id="use-first-line-title" checked>
+        Use first line as chart title
+    </label>
+</div>
+
+<div>
+    <button id="draw-btn">Draw Flowchart</button>
+</div>
+
+<h3>Output:</h3>
+<div id="flow-output"></div>
+
+<script type="module">
+const btn = document.getElementById('draw-btn');
+const output = document.getElementById('flow-output');
+
+btn.addEventListener('click', () => {
+    const inputText = document.getElementById('flow-input').value.trim();
+    if (!inputText) {
+        output.innerHTML = 'Enter some nodes!';
+        return;
+    }
+
+    const useTitle = document.getElementById('use-first-line-title').checked;
+
+    // Split nodes by empty lines
+    let rawNodes = inputText.split(/\n\s*\n/);
+    let nodes = rawNodes.map(n => n.trim()).filter(n => n);
+
+    let title = '';
+    if (useTitle && nodes.length) {
+        const firstNodeLines = nodes[0].split('\n');
+        title = firstNodeLines[0].trim();
+        if (firstNodeLines.length > 1) {
+            nodes[0] = firstNodeLines.slice(1).join('\n');
+        } else {
+            nodes = nodes.slice(1);
+        }
+    }
+
+    if (nodes.length < 1) {
+        output.innerHTML = 'Need at least one node!';
+        return;
+    }
+
+    // ---------- Debug Padding with 'X' ----------
+    // Step 1: Find the max row length across all nodes
+    let maxLength = 0;
+    nodes.forEach(node => {
+        const lines = node.split('\n');
+        lines.forEach(line => {
+            if (line.length > maxLength) maxLength = line.length;
+        });
+    });
+
+    // Step 2: Pad all nodes with 'X' for debugging + 1 extra X each side
+    nodes = nodes.map(node => {
+        return node.split('\n').map(line => {
+            const padding = maxLength - line.length;
+            const leftPad = Math.floor(padding / 2);
+            const rightPad = padding - leftPad;
+            return 'X' + 'X'.repeat(leftPad) + line + 'X'.repeat(rightPad) + 'X';
+        }).join('<br/>');
+    });
+
+    // Generate Mermaid flowchart code
+    let mermaidCode = 'flowchart TB\n';
+    if (title) {
+        mermaidCode += `    %% Title: ${title}\n`;
+    }
+
+    nodes.forEach((nodeText, idx) => {
+        mermaidCode += `    N${idx}["${nodeText}"]\n`;
+    });
+
+    for (let i = 0; i < nodes.length - 1; i++) {
+        mermaidCode += `    N${i} --> N${i+1}\n`;
+    }
+
+    // Insert and render
+    output.innerHTML = `<div class="mermaid">${mermaidCode}</div>`;
+    mermaid.init({
+        startOnLoad: false,
+        theme: 'default',
+        themeVariables: {
+            nodeBorder: "#004990",
+            mainBkg: "#c9d7e4",
+            nodeTextColor: "#274059",
+            fontFamily: "Courier",
+            fontSize: "16px"
+        }
+    }, output.querySelectorAll('.mermaid'));
+});
+</script>
+
+</body>
+</html>
