@@ -292,6 +292,107 @@ function cleanSvgForInkscape(svgElement) {
     return svgElement;
 }
 
+// Function to fix arrow markers for PDF export
+function fixArrowMarkers(svgElement) {
+    // Find all paths that should have arrow markers
+    const arrowPaths = svgElement.querySelectorAll('path[marker-end], path[marker-start]');
+    
+    arrowPaths.forEach(path => {
+        // Get the marker reference
+        const markerEnd = path.getAttribute('marker-end');
+        const markerStart = path.getAttribute('marker-start');
+        
+        if (markerEnd) {
+            // Find the marker definition
+            const markerId = markerEnd.replace('url(#', '').replace(')', '');
+            const marker = svgElement.querySelector(`#${markerId}`);
+            
+            if (marker) {
+                // Ensure the marker has proper attributes
+                marker.setAttribute('markerWidth', '10');
+                marker.setAttribute('markerHeight', '10');
+                marker.setAttribute('refX', '9');
+                marker.setAttribute('refY', '3');
+                marker.setAttribute('orient', 'auto');
+                marker.setAttribute('markerUnits', 'strokeWidth');
+                
+                // Fix the path inside the marker
+                const markerPath = marker.querySelector('path');
+                if (markerPath) {
+                    markerPath.setAttribute('fill', '#000000');
+                    markerPath.setAttribute('stroke', '#000000');
+                    markerPath.setAttribute('stroke-width', '1');
+                }
+            }
+        }
+        
+        if (markerStart) {
+            // Find the marker definition
+            const markerId = markerStart.replace('url(#', '').replace(')', '');
+            const marker = svgElement.querySelector(`#${markerId}`);
+            
+            if (marker) {
+                // Ensure the marker has proper attributes
+                marker.setAttribute('markerWidth', '10');
+                marker.setAttribute('markerHeight', '10');
+                marker.setAttribute('refX', '1');
+                marker.setAttribute('refY', '3');
+                marker.setAttribute('orient', 'auto');
+                marker.setAttribute('markerUnits', 'strokeWidth');
+                
+                // Fix the path inside the marker
+                const markerPath = marker.querySelector('path');
+                if (markerPath) {
+                    markerPath.setAttribute('fill', '#000000');
+                    markerPath.setAttribute('stroke', '#000000');
+                    markerPath.setAttribute('stroke-width', '1');
+                }
+            }
+        }
+    });
+    
+    return svgElement;
+}
+
+// Function to convert arrow markers to inline paths for PDF export
+function convertArrowMarkersToPaths(svgElement) {
+    const arrowPaths = svgElement.querySelectorAll('path[marker-end]');
+    arrowPaths.forEach(path => {
+        path.removeAttribute('marker-end');
+
+        // Parse the d attribute (only works for simple straight lines)
+        const d = path.getAttribute('d');
+        const nums = d.match(/[-]?\d+\.?\d*/g).map(Number);
+        if (nums.length < 4) return;
+
+        const x1 = nums[nums.length - 4];
+        const y1 = nums[nums.length - 3];
+        const x2 = nums[nums.length - 2];
+        const y2 = nums[nums.length - 1];
+
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const size = 12; // arrowhead size
+
+        const arrow1 = [
+            x2 - size * Math.cos(angle - Math.PI / 6),
+            y2 - size * Math.sin(angle - Math.PI / 6)
+        ];
+        const arrow2 = [
+            x2 - size * Math.cos(angle + Math.PI / 6),
+            y2 - size * Math.sin(angle + Math.PI / 6)
+        ];
+
+        const arrow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        arrow.setAttribute("d", `M${x2},${y2} L${arrow1[0]},${arrow1[1]} L${arrow2[0]},${arrow2[1]} Z`);
+        arrow.setAttribute("fill", "#000");
+        arrow.setAttribute("stroke", "#000");
+        svgElement.appendChild(arrow);
+    });
+
+    return svgElement;
+}
+
+
 
 function centerAllText(svgElement) {
     const labels = svgElement.querySelectorAll("g.label");
@@ -456,6 +557,14 @@ exportPdfBtn.addEventListener('click', () => {
                 croppedSvg.setAttribute('width', bbox.width + padding * 2);
                 croppedSvg.setAttribute('height', bbox.height + padding * 2);
                 
+                // Fix invisible X elements and clean up SVG
+                fixInvisibleX(croppedSvg);
+                centerAllText(croppedSvg);
+                cleanSvgForInkscape(croppedSvg);
+                fixArrowMarkers(croppedSvg);
+                // Convert arrow markers to inline paths for PDF compatibility
+                convertArrowMarkersToPaths(croppedSvg);
+                
                 // Get SVG string
                 const svgString = new XMLSerializer().serializeToString(croppedSvg);
                 console.log('SVG string length:', svgString.length);
@@ -463,49 +572,22 @@ exportPdfBtn.addEventListener('click', () => {
                 // Create PDF document
                 const doc = new PDFDocument({ 
                     compress: true,
-                    size: bbox.width > bbox.height ? 'A4' : 'A4'
+                    size: 'A4',
+                    margin: 50
                 });
                 
-                // Add title
-                doc.fontSize(16);
-                doc.text('Flowchart', 50, 50);
+                // No title needed - just the flowchart
                 
-                // Create hidden div with cleaned SVG
-                const hiddenDiv = document.createElement('div');
-                hiddenDiv.style.position = 'absolute';
-                hiddenDiv.style.left = '-9999px';
-                hiddenDiv.style.top = '-9999px';
-                hiddenDiv.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">' + 
-                    svgString + '</svg>';
-                document.body.appendChild(hiddenDiv);
+                // Create a proper SVG element for conversion
+                const parser = new DOMParser();
+                const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+                const svgElement = svgDoc.documentElement;
                 
-                // Convert SVG to PDF using SVGtoPDF
-                try {
-                    console.log('Converting SVG to PDF...');
-                    console.log('SVG element:', hiddenDiv.firstChild);
-                    console.log('SVG dimensions:', bbox.width, 'x', bbox.height);
-                    
-                    // Try different positioning and scaling
-                    const scale = Math.min(400 / bbox.width, 300 / bbox.height);
-                    console.log('Scale factor:', scale);
-                    
-                    SVGtoPDF(doc, hiddenDiv.firstChild, 50, 80, { 
-                        useCSS: true,
-                        scaleX: scale,
-                        scaleY: scale
-                    });
-                    console.log('SVG conversion successful');
-                } catch (svgError) {
-                    console.error('SVG conversion failed:', svgError);
-                    // Fallback: Add a simple text message
-                    doc.fontSize(12);
-                    doc.text('Flowchart could not be rendered. Please try PNG export instead.', 50, 100);
-                }
+                // Ensure proper namespace
+                svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                svgElement.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
                 
-                // Clean up hidden div
-                document.body.removeChild(hiddenDiv);
-                
-                // Create blob and download
+                // Set up PDF finalization handlers
                 const chunks = [];
                 doc.on('data', chunk => chunks.push(chunk));
                 doc.on('end', () => {
@@ -520,8 +602,97 @@ exportPdfBtn.addEventListener('click', () => {
                     URL.revokeObjectURL(url);
                 });
                 
-                // Finalize the PDF
-                doc.end();
+                // Convert SVG to PDF using SVGtoPDF
+                let svgConversionSuccess = false;
+                try {
+                    console.log('Converting SVG to PDF...');
+                    console.log('SVG dimensions:', bbox.width, 'x', bbox.height);
+                    
+                    // Calculate appropriate scale to fit on page
+                    const pageWidth = 500; // A4 width minus margins
+                    const pageHeight = 700; // A4 height minus margins
+                    const scale = Math.min(pageWidth / bbox.width, pageHeight / bbox.height, 1);
+                    console.log('Scale factor:', scale);
+                    
+                    // Position the SVG on the page
+                    const x = 50 + (pageWidth - bbox.width * scale) / 2;
+                    const y = 50 + (pageHeight - bbox.height * scale) / 2;
+                    
+                    SVGtoPDF(doc, svgElement, x, y, { 
+                        useCSS: true,
+                        scaleX: scale,
+                        scaleY: scale
+                    });
+                    console.log('SVG conversion successful');
+                    svgConversionSuccess = true;
+                } catch (svgError) {
+                    console.error('SVG conversion failed:', svgError);
+                    // Fallback: Convert SVG to PNG and embed in PDF
+                    try {
+                        console.log('Trying PNG fallback...');
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Set canvas size
+                        const scale = 2; // Higher resolution
+                        canvas.width = (bbox.width + padding * 2) * scale;
+                        canvas.height = (bbox.height + padding * 2) * scale;
+                        ctx.scale(scale, scale);
+                        
+                        // Set white background
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, bbox.width + padding * 2, bbox.height + padding * 2);
+                        
+                        // Apply arrow marker fixes to the SVG for PNG conversion too
+                        fixArrowMarkers(croppedSvg);
+                        convertArrowMarkersToPaths(croppedSvg);
+                        const svgStringForPng = new XMLSerializer().serializeToString(croppedSvg);
+                        
+                        // Convert SVG to image
+                        const svgBlob = new Blob([svgStringForPng], { type: 'image/svg+xml;charset=utf-8' });
+                        const url = URL.createObjectURL(svgBlob);
+                        const img = new Image();
+                        
+                        img.onload = () => {
+                            ctx.drawImage(img, 0, 0);
+                            URL.revokeObjectURL(url);
+                            
+                            // Convert canvas to PNG and add to PDF
+                            canvas.toBlob((pngBlob) => {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    const arrayBuffer = reader.result;
+                                    const uint8Array = new Uint8Array(arrayBuffer);
+                                    
+                                    // Add PNG image to PDF
+                                    const imgWidth = Math.min(400, bbox.width);
+                                    const imgHeight = (bbox.height / bbox.width) * imgWidth;
+                                    const imgX = 50 + (500 - imgWidth) / 2;
+                                    const imgY = 50;
+                                    
+                                    doc.image(uint8Array, imgX, imgY, { width: imgWidth, height: imgHeight });
+                                    
+                                    // Finalize the PDF
+                                    doc.end();
+                                };
+                                reader.readAsArrayBuffer(pngBlob);
+                            }, 'image/png');
+                        };
+                        img.src = url;
+                        
+                        return; // Exit early since we're handling the PDF finalization in the callback
+                    } catch (pngError) {
+                        console.error('PNG fallback failed:', pngError);
+                        // Final fallback: Add a simple text message
+                        doc.fontSize(12);
+                        doc.text('Flowchart could not be rendered. Please try PNG export instead.', 50, 100);
+                    }
+                }
+                
+                // Finalize the PDF if SVG conversion was successful
+                if (svgConversionSuccess) {
+                    doc.end();
+                }
                 
             } catch (error) {
                 console.error('PDF export error:', error);
