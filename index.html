@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FlowchartWizard JS + Mermaid Debug Padding</title>
+<title>FlowchartWizard JS + Mermaid Invisible-X Padding</title>
 
 <!-- Mermaid -->
 <script type="module">
@@ -38,7 +38,7 @@ button {
 </head>
 <body>
 
-<h2>FlowchartWizard JS + Mermaid Debug Padding</h2>
+<h2>FlowchartWizard JS + Mermaid Invisible-X Padding</h2>
 
 <p>Enter each step of your flowchart. Use empty lines to separate nodes. Use line breaks (<kbd>Enter</kbd>) inside a node for multi-line text.</p>
 <textarea id="flow-input" rows="10" placeholder="Node 1 line 1
@@ -96,7 +96,9 @@ btn.addEventListener('click', () => {
         return;
     }
 
-    // ---------- Debug Padding with 'X' ----------
+    // ---------- Invisible-X Padding ----------
+    const padChar = '<span style="visibility:hidden">X</span>';
+
     // Step 1: Find the max row length across all nodes
     let maxLength = 0;
     nodes.forEach(node => {
@@ -106,13 +108,13 @@ btn.addEventListener('click', () => {
         });
     });
 
-    // Step 2: Pad all nodes with 'X' for debugging + 1 extra X each side
+    // Step 2: Pad all nodes with invisible-X
     nodes = nodes.map(node => {
         return node.split('\n').map(line => {
             const padding = maxLength - line.length;
             const leftPad = Math.floor(padding / 2);
             const rightPad = padding - leftPad;
-            return 'X' + 'X'.repeat(leftPad) + line + 'X'.repeat(rightPad) + 'X';
+            return padChar.repeat(leftPad) + line + padChar.repeat(rightPad);
         }).join('<br/>');
     });
 
