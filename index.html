@@ -34,6 +34,55 @@ button {
     padding: 1rem;
     background-color: #f9f9f9;
 }
+
+/* Style for the title */
+.flowchart-title {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    font-size: 1.2em;
+}
+
+/* Center the Mermaid diagram */
+.mermaid {
+    text-align: center;
+}
+
+/* Hide interface elements when printing */
+@media print {
+    /* Hide specific interface elements only */
+    textarea, button, label, h2, h3, p {
+        display: none !important;
+    }
+    
+    /* Hide the input and button containers */
+    div:has(textarea), div:has(button) {
+        display: none !important;
+    }
+    
+    /* Clean up the output area */
+    #flow-output {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        background: white !important;
+        width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Clean body */
+    body {
+        margin: 0 !important;
+        padding: 20px !important;
+        background: white !important;
+        font-size: 12pt !important;
+    }
+    
+    /* Keep flowchart content visible */
+    .mermaid, .flowchart-title {
+        display: block !important;
+    }
+}
 </style>
 </head>
 <body>
@@ -58,6 +107,9 @@ Node 3 line 2"></textarea>
 
 <div>
     <button id="draw-btn">Draw Flowchart</button>
+    <button id="export-svg-btn">Export as SVG</button>
+    <button id="export-png-btn">Export as PNG</button>
+    <button id="print-btn">Print</button>
 </div>
 
 <h3>Output:</h3>
@@ -65,6 +117,9 @@ Node 3 line 2"></textarea>
 
 <script type="module">
 const btn = document.getElementById('draw-btn');
+const exportSvgBtn = document.getElementById('export-svg-btn');
+const exportPngBtn = document.getElementById('export-png-btn');
+const printBtn = document.getElementById('print-btn');
 const output = document.getElementById('flow-output');
 
 btn.addEventListener('click', () => {
@@ -120,31 +175,113 @@ btn.addEventListener('click', () => {
 
     // Generate Mermaid flowchart code
     let mermaidCode = 'flowchart TB\n';
-    if (title) {
-        mermaidCode += `    %% Title: ${title}\n`;
-    }
 
     nodes.forEach((nodeText, idx) => {
         mermaidCode += `    N${idx}["${nodeText}"]\n`;
     });
-
+    
+    // Connect nodes in sequence
     for (let i = 0; i < nodes.length - 1; i++) {
         mermaidCode += `    N${i} --> N${i+1}\n`;
     }
 
-    // Insert and render
-    output.innerHTML = `<div class="mermaid">${mermaidCode}</div>`;
+    // Insert and render with title above if needed
+    let htmlContent = '';
+    if (useTitle && title) {
+        htmlContent += `<div class="flowchart-title">${title}</div>`;
+    }
+    htmlContent += `<div class="mermaid">${mermaidCode}</div>`;
+    output.innerHTML = htmlContent;
     mermaid.init({
         startOnLoad: false,
         theme: 'default',
         themeVariables: {
-            nodeBorder: "#004990",
-            mainBkg: "#c9d7e4",
-            nodeTextColor: "#274059",
+            nodeBorder: "#000000",
+            mainBkg: "#ffffff",
+            nodeTextColor: "#000000",
             fontFamily: "Courier",
             fontSize: "16px"
         }
     }, output.querySelectorAll('.mermaid'));
+});
+
+// Print functionality
+printBtn.addEventListener('click', () => {
+    if (output.innerHTML.includes('mermaid')) {
+        window.print();
+    } else {
+        alert('Please generate a flowchart first!');
+    }
+});
+
+// Export as SVG functionality
+exportSvgBtn.addEventListener('click', () => {
+    if (output.innerHTML.includes('mermaid')) {
+        const svg = output.querySelector('.mermaid svg');
+        if (svg) {
+            const serializer = new XMLSerializer();
+            const svgBlob = new Blob([serializer.serializeToString(svg)], { type: "image/svg+xml" });
+            const url = URL.createObjectURL(svgBlob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "flowchart.svg";
+            link.click();
+            
+            // Clean up the URL object
+            URL.revokeObjectURL(url);
+        } else {
+            alert('SVG not found. Please try generating the flowchart again.');
+        }
+    } else {
+        alert('Please generate a flowchart first!');
+    }
+});
+
+// Export as PNG functionality
+exportPngBtn.addEventListener('click', () => {
+    if (output.innerHTML.includes('mermaid')) {
+        const svg = output.querySelector('.mermaid svg');
+        if (svg) {
+            const serializer = new XMLSerializer();
+            const svgData = serializer.serializeToString(svg);
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            const img = new Image();
+            const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = () => {
+                // Scale up for much higher DPI (5x for 500+ DPI)
+                const scale = 5;
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                
+                // Scale the context
+                ctx.scale(scale, scale);
+                
+                // Set white background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, img.width, img.height);
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+
+                canvas.toBlob((blob) => {
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = "flowchart.png";
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                });
+            };
+            img.src = url;
+        } else {
+            alert('SVG not found. Please try generating the flowchart again.');
+        }
+    } else {
+        alert('Please generate a flowchart first!');
+    }
 });
 </script>
 
