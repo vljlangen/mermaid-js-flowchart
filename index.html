@@ -215,6 +215,7 @@ function fixInvisibleX(svgElement) {
         textEl.setAttribute("y", 0);
         textEl.setAttribute("font-family", "Courier");
         textEl.setAttribute("font-size", "16px");
+        textEl.setAttribute("fill", "#000000");
 
         // Append a <tspan> for each line
         lines.forEach((line, idx) => {
@@ -222,6 +223,7 @@ function fixInvisibleX(svgElement) {
             tspan.textContent = line;
             tspan.setAttribute("x", 0);
             tspan.setAttribute("dy", idx === 0 ? "0.7em" : "1.2em");
+            tspan.setAttribute("fill", "#000000");
             textEl.appendChild(tspan);
         });
 
@@ -229,6 +231,64 @@ function fixInvisibleX(svgElement) {
         parentG.replaceChild(textEl, foreign);
     });
 
+    return svgElement;
+}
+
+// Function to clean up SVG for better Inkscape compatibility
+function cleanSvgForInkscape(svgElement) {
+    // Remove all style elements to avoid conflicts
+    const styleElements = svgElement.querySelectorAll('style');
+    styleElements.forEach(style => style.remove());
+    
+    // Add explicit fill and stroke attributes to all rect elements
+    const rects = svgElement.querySelectorAll('rect');
+    rects.forEach(rect => {
+        // Only modify node rectangles, not other rects
+        if (rect.classList.contains('label-container') || rect.classList.contains('basic')) {
+            rect.setAttribute('fill', '#ffffff');
+            rect.setAttribute('stroke', '#000000');
+            rect.setAttribute('stroke-width', '1');
+        }
+    });
+    
+    // Fix arrow paths - add stroke color to connecting lines
+    const paths = svgElement.querySelectorAll('path');
+    paths.forEach(path => {
+        // Check if this is an arrow path (connecting lines between nodes)
+        if (path.classList.contains('flowchart-link') || path.classList.contains('edge-thickness-normal')) {
+            path.setAttribute('stroke', '#000000');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('fill', 'none');
+        }
+        // Fix arrow markers
+        if (path.classList.contains('arrowMarkerPath')) {
+            path.setAttribute('stroke', '#000000');
+            path.setAttribute('fill', '#000000');
+        }
+    });
+    
+    // Fix circles in arrow markers
+    const circles = svgElement.querySelectorAll('circle');
+    circles.forEach(circle => {
+        if (circle.classList.contains('arrowMarkerPath')) {
+            circle.setAttribute('stroke', '#000000');
+            circle.setAttribute('fill', '#000000');
+        }
+    });
+    
+    // Ensure text elements have explicit fill
+    const texts = svgElement.querySelectorAll('text, tspan');
+    texts.forEach(text => {
+        text.setAttribute('fill', '#000000');
+        text.removeAttribute('color'); // Remove color attribute that might confuse Inkscape
+    });
+    
+    // Clean up any remaining color attributes
+    const allElements = svgElement.querySelectorAll('*');
+    allElements.forEach(el => {
+        el.removeAttribute('color');
+    });
+    
     return svgElement;
 }
 
@@ -244,10 +304,12 @@ function centerAllText(svgElement) {
         if (!rect) return;
 
         const rectHeight = parseFloat(rect.getAttribute("height") || 0);
+        const rectWidth = parseFloat(rect.getAttribute("width") || 0);
 
         const textEl = labelG.querySelector("text");
         if (!textEl) return;
 
+        // Get the bounding box of the text
         const textBBox = textEl.getBBox();
 
         // Parse current transform
@@ -256,13 +318,16 @@ function centerAllText(svgElement) {
         if (!match) return;
         const [, oldX, oldY] = match.map(Number);
 
-        // Horizontal centering
+        // Center horizontally: move text so it's centered in the rectangle
         const newX = -(textBBox.width / 2);
 
-        // Keep original Y, but nudge so block is vertically centered
-        const textBlockHeight = textBBox.height;
-        const newY = oldY + (rectHeight - textBlockHeight) / 2 - (rectHeight / 2);
+        // Center vertically: position text in the middle of the rectangle
+        const newY = oldY + (rectHeight - textBBox.height) / 2 - (rectHeight / 2);
 
+        // Set text anchor to middle for proper centering
+        textEl.setAttribute("text-anchor", "middle");
+        
+        // Update the transform
         labelG.setAttribute("transform", `translate(${newX}, ${newY})`);
     });
 
@@ -287,6 +352,9 @@ exportSvgBtn.addEventListener('click', () => {
             
             // Center all text elements
             centerAllText(svgClone);
+            
+            // Clean up SVG for Inkscape compatibility
+            cleanSvgForInkscape(svgClone);
             
             // Export the fixed SVG
             const serializer = new XMLSerializer();
