@@ -220,13 +220,67 @@ printBtn.addEventListener('click', () => {
     }
 });
 
+// Function to fix invisible X elements in SVG
+function fixInvisibleX(svgElement) {
+    const foreignObjects = svgElement.querySelectorAll('foreignObject');
+
+    foreignObjects.forEach(foreign => {
+        const parentG = foreign.parentNode;
+
+        // Get the HTML content inside the foreignObject
+        let htmlContent = foreign.innerHTML;
+
+        // Remove invisible-X spans
+        htmlContent = htmlContent.replace(/<span style="visibility:hidden">X<\/span>/g, '');
+
+        // Remove outer div/span tags
+        htmlContent = htmlContent.replace(/<\/?div[^>]*>/g, '')
+                                 .replace(/<\/?span[^>]*>/g, '');
+
+        // Split by <br> or newline to get individual lines
+        const lines = htmlContent.split(/<br\s*\/?>|\n/).map(line => line.trim()).filter(line => line);
+
+        // Create a <text> element to replace the foreignObject
+        const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        textEl.setAttribute("x", 0);
+        textEl.setAttribute("y", 0);
+        textEl.setAttribute("font-family", "Courier");
+        textEl.setAttribute("font-size", "16px");
+
+        // Append a <tspan> for each line
+        lines.forEach((line, idx) => {
+            const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+            tspan.textContent = line;
+            tspan.setAttribute("x", 0);
+            tspan.setAttribute("dy", idx === 0 ? "1em" : "1.2em");
+            textEl.appendChild(tspan);
+        });
+
+        // Replace foreignObject with the new <text>
+        parentG.replaceChild(textEl, foreign);
+    });
+
+    return svgElement;
+}
+
+
+
+
+
 // Export as SVG functionality
 exportSvgBtn.addEventListener('click', () => {
     if (output.innerHTML.includes('mermaid')) {
         const svg = output.querySelector('.mermaid svg');
         if (svg) {
+            // Clone the SVG to avoid modifying the original
+            const svgClone = svg.cloneNode(true);
+            
+            // Fix invisible X elements
+            fixInvisibleX(svgClone);
+            
+            // Export the fixed SVG
             const serializer = new XMLSerializer();
-            const svgBlob = new Blob([serializer.serializeToString(svg)], { type: "image/svg+xml" });
+            const svgBlob = new Blob([serializer.serializeToString(svgClone)], { type: "image/svg+xml" });
             const url = URL.createObjectURL(svgBlob);
 
             const link = document.createElement("a");
