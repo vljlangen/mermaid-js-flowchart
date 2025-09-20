@@ -264,6 +264,38 @@ function fixInvisibleX(svgElement) {
 }
 
 
+function centerAllText(svgElement) {
+    const labels = svgElement.querySelectorAll("g.label");
+
+    labels.forEach(labelG => {
+        const parentNode = labelG.closest("g.node");
+        if (!parentNode) return;
+
+        const rect = parentNode.querySelector("rect");
+        if (!rect) return;
+
+        const rectWidth = parseFloat(rect.getAttribute("width") || 0);
+
+        // Find bounding box of text inside labelG
+        const textEl = labelG.querySelector("text");
+        if (!textEl) return;
+
+        const textBBox = textEl.getBBox();
+        const textWidth = textBBox.width;
+
+        // Calculate new X offset so text is centered
+        const currentTransform = labelG.getAttribute("transform") || "translate(0,0)";
+        const match = currentTransform.match(/translate\((-?\d+\.?\d*),\s*(-?\d+\.?\d*)\)/);
+        if (!match) return;
+        const [, oldX, oldY] = match.map(Number);
+
+        const newX = -(textWidth / 2);
+        labelG.setAttribute("transform", `translate(${newX}, ${oldY})`);
+    });
+
+    return svgElement;
+}
+
 
 
 
@@ -277,6 +309,9 @@ exportSvgBtn.addEventListener('click', () => {
             
             // Fix invisible X elements
             fixInvisibleX(svgClone);
+            
+            // Center all text elements
+            centerAllText(svgClone);
             
             // Export the fixed SVG
             const serializer = new XMLSerializer();
