@@ -39,13 +39,6 @@ button {
     background-color: #f9f9f9;
 }
 
-/* Style for the title */
-.flowchart-title {
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 1rem;
-    font-size: 1.2em;
-}
 
 /* Center the Mermaid diagram */
 .mermaid {
@@ -83,7 +76,7 @@ button {
     }
     
     /* Keep flowchart content visible */
-    .mermaid, .flowchart-title {
+    .mermaid {
         display: block !important;
     }
 }
@@ -102,12 +95,6 @@ Node 2
 Node 3 line 1
 Node 3 line 2"></textarea>
 
-<div>
-    <label>
-        <input type="checkbox" id="use-first-line-title" checked>
-        Use first line as chart title
-    </label>
-</div>
 
 <div>
     <button id="draw-btn">Draw Flowchart</button>
@@ -135,22 +122,9 @@ btn.addEventListener('click', () => {
         return;
     }
 
-    const useTitle = document.getElementById('use-first-line-title').checked;
-
     // Split nodes by empty lines
     let rawNodes = inputText.split(/\n\s*\n/);
     let nodes = rawNodes.map(n => n.trim()).filter(n => n);
-
-    let title = '';
-    if (useTitle && nodes.length) {
-        const firstNodeLines = nodes[0].split('\n');
-        title = firstNodeLines[0].trim();
-        if (firstNodeLines.length > 1) {
-            nodes[0] = firstNodeLines.slice(1).join('\n');
-        } else {
-            nodes = nodes.slice(1);
-        }
-    }
 
     if (nodes.length < 1) {
         output.innerHTML = 'Need at least one node!';
@@ -191,13 +165,8 @@ btn.addEventListener('click', () => {
         mermaidCode += `    N${i} --> N${i+1}\n`;
     }
 
-    // Insert and render with title above if needed
-    let htmlContent = '';
-    if (useTitle && title) {
-        htmlContent += `<div class="flowchart-title">${title}</div>`;
-    }
-    htmlContent += `<div class="mermaid">${mermaidCode}</div>`;
-    output.innerHTML = htmlContent;
+    // Insert and render
+    output.innerHTML = `<div class="mermaid">${mermaidCode}</div>`;
     mermaid.init({
         startOnLoad: false,
         theme: 'default',
@@ -429,12 +398,9 @@ exportPdfBtn.addEventListener('click', () => {
                     size: bbox.width > bbox.height ? 'A4' : 'A4'
                 });
                 
-                // Get title if exists
-                const title = document.querySelector('.flowchart-title')?.textContent || 'Flowchart';
-                
                 // Add title
                 doc.fontSize(16);
-                doc.text(title, 50, 50);
+                doc.text('Flowchart', 50, 50);
                 
                 // Create hidden div with cleaned SVG
                 const hiddenDiv = document.createElement('div');
