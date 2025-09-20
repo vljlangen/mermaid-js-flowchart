@@ -12,6 +12,10 @@
   window.mermaid = mermaid;
 </script>
 
+<!-- PDFKit and SVG-to-PDFKit -->
+<script src="https://unpkg.com/pdfkit@0.13.0/js/pdfkit.standalone.js"></script>
+<script src="https://unpkg.com/svg-to-pdfkit@0.1.8/source.js"></script>
+
 <style>
 body {
     font-family: Arial, sans-serif;
@@ -109,6 +113,7 @@ Node 3 line 2"></textarea>
     <button id="draw-btn">Draw Flowchart</button>
     <button id="export-svg-btn">Export as SVG</button>
     <button id="export-png-btn">Export as PNG</button>
+    <button id="export-pdf-btn">Export as PDF</button>
     <button id="print-btn">Print</button>
 </div>
 
@@ -119,6 +124,7 @@ Node 3 line 2"></textarea>
 const btn = document.getElementById('draw-btn');
 const exportSvgBtn = document.getElementById('export-svg-btn');
 const exportPngBtn = document.getElementById('export-png-btn');
+const exportPdfBtn = document.getElementById('export-pdf-btn');
 const printBtn = document.getElementById('print-btn');
 const output = document.getElementById('flow-output');
 
@@ -243,8 +249,19 @@ exportPngBtn.addEventListener('click', () => {
     if (output.innerHTML.includes('mermaid')) {
         const svg = output.querySelector('.mermaid svg');
         if (svg) {
+            // Get the bounding box of the actual content
+            const bbox = svg.getBBox();
+            const padding = 20; // Add some padding around the content
+            
+            // Create a cropped SVG
+            const croppedSvg = svg.cloneNode(true);
+            croppedSvg.setAttribute('viewBox', 
+                `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`);
+            croppedSvg.setAttribute('width', bbox.width + padding * 2);
+            croppedSvg.setAttribute('height', bbox.height + padding * 2);
+            
             const serializer = new XMLSerializer();
-            const svgData = serializer.serializeToString(svg);
+            const svgData = serializer.serializeToString(croppedSvg);
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d");
 
@@ -276,6 +293,111 @@ exportPngBtn.addEventListener('click', () => {
                 });
             };
             img.src = url;
+        } else {
+            alert('SVG not found. Please try generating the flowchart again.');
+        }
+    } else {
+        alert('Please generate a flowchart first!');
+    }
+});
+
+// Export as PDF functionality using PDFKit + SVG-to-PDFKit
+exportPdfBtn.addEventListener('click', () => {
+    if (output.innerHTML.includes('mermaid')) {
+        const svg = output.querySelector('.mermaid svg');
+        if (svg) {
+            try {
+                // Check if PDFKit is loaded
+                if (typeof PDFDocument === 'undefined' || typeof SVGtoPDF === 'undefined') {
+                    alert('PDF libraries not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
+                // Get the bounding box of the actual content
+                const bbox = svg.getBBox();
+                const padding = 20;
+                
+                // Create a cropped SVG
+                const croppedSvg = svg.cloneNode(true);
+                croppedSvg.setAttribute('viewBox', 
+                    `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`);
+                croppedSvg.setAttribute('width', bbox.width + padding * 2);
+                croppedSvg.setAttribute('height', bbox.height + padding * 2);
+                
+                // Get SVG string
+                const svgString = new XMLSerializer().serializeToString(croppedSvg);
+                console.log('SVG string length:', svgString.length);
+                
+                // Create PDF document
+                const doc = new PDFDocument({ 
+                    compress: true,
+                    size: bbox.width > bbox.height ? 'A4' : 'A4'
+                });
+                
+                // Get title if exists
+                const title = document.querySelector('.flowchart-title')?.textContent || 'Flowchart';
+                
+                // Add title
+                doc.fontSize(16);
+                doc.text(title, 50, 50);
+                
+                // Create hidden div with cleaned SVG
+                const hiddenDiv = document.createElement('div');
+                hiddenDiv.style.position = 'absolute';
+                hiddenDiv.style.left = '-9999px';
+                hiddenDiv.style.top = '-9999px';
+                hiddenDiv.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">' + 
+                    svgString + '</svg>';
+                document.body.appendChild(hiddenDiv);
+                
+                // Convert SVG to PDF using SVGtoPDF
+                try {
+                    console.log('Converting SVG to PDF...');
+                    console.log('SVG element:', hiddenDiv.firstChild);
+                    console.log('SVG dimensions:', bbox.width, 'x', bbox.height);
+                    
+                    // Try different positioning and scaling
+                    const scale = Math.min(400 / bbox.width, 300 / bbox.height);
+                    console.log('Scale factor:', scale);
+                    
+                    SVGtoPDF(doc, hiddenDiv.firstChild, 50, 80, { 
+                        useCSS: true,
+                        scaleX: scale,
+                        scaleY: scale
+                    });
+                    console.log('SVG conversion successful');
+                } catch (svgError) {
+                    console.error('SVG conversion failed:', svgError);
+                    // Fallback: Add a simple text message
+                    doc.fontSize(12);
+                    doc.text('Flowchart could not be rendered. Please try PNG export instead.', 50, 100);
+                }
+                
+                // Clean up hidden div
+                document.body.removeChild(hiddenDiv);
+                
+                // Create blob and download
+                const chunks = [];
+                doc.on('data', chunk => chunks.push(chunk));
+                doc.on('end', () => {
+                    const blob = new Blob(chunks, { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'flowchart.pdf';
+                    link.click();
+                    
+                    URL.revokeObjectURL(url);
+                });
+                
+                // Finalize the PDF
+                doc.end();
+                
+            } catch (error) {
+                console.error('PDF export error:', error);
+                alert('Error creating PDF: ' + error.message);
+            }
         } else {
             alert('SVG not found. Please try generating the flowchart again.');
         }
