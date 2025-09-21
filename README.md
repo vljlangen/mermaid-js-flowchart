@@ -1,23 +1,26 @@
-# FlowchartWizard JS + Mermaid
+# Funky Flowcharts
 
-A simple web application for creating uniform-sized flowcharts using Mermaid.js with automatic text padding to ensure consistent node dimensions.
+**World's Fastest, Funkiest, Free-est Flowchart-o-matic** - A simple web application for creating beautiful, uniform-sized flowcharts using Mermaid.js with automatic text padding to ensure consistent node dimensions.
 
 ## Features
 
-- **Uniform Node Sizing**: Automatically pads text to make all flowchart nodes the same width
+- **Uniform Node Sizing**: Automatically pads text with invisible characters to make all flowchart nodes the same width
 - **Multi-line Support**: Use line breaks within nodes for multi-line text
-- **Title Support**: Option to use the first line as a chart title
 - **Real-time Rendering**: Instant flowchart generation as you type
+- **Multiple Export Formats**: Export as SVG, PNG, or PDF
+- **Print Support**: Clean printing with interface elements hidden
+- **Invisible-X Padding**: Uses clever invisible character padding for perfect node alignment
 - **Clean UI**: Simple, intuitive interface for flowchart creation
 
 ## How It Works
 
-The application uses a clever workaround to ensure all nodes are the same size:
+The application uses a clever "Invisible-X Padding" technique to ensure all nodes are the same size:
 
-1. **Text Analysis**: Scans all node text to find the longest line
-2. **Padding Algorithm**: Adds padding spaces (or 'X' characters for debugging) to shorter lines
+1. **Text Analysis**: Scans all node text to find the longest line across all nodes
+2. **Invisible Padding**: Adds invisible `<span style="visibility:hidden">X</span>` characters to shorter lines
 3. **Even Distribution**: Distributes padding evenly on both sides of the text
 4. **Mermaid Rendering**: Generates a Mermaid flowchart with uniformly sized nodes
+5. **Export Processing**: Cleans up invisible characters during export for clean output
 
 ## Usage
 
@@ -25,8 +28,12 @@ The application uses a clever workaround to ensure all nodes are the same size:
 2. Enter your flowchart steps in the textarea:
    - Use empty lines to separate different nodes
    - Use line breaks (Enter) within a node for multi-line text
-3. Check "Use first line as chart title" if you want the first line to be a title
-4. Click "Draw Flowchart" to generate your chart
+3. Click "Draw Flowchart" to generate your chart
+4. Export your flowchart:
+   - **SVG**: For vector graphics and further editing
+   - **PNG**: For high-resolution images
+   - **PDF**: For documents and presentations
+   - **Print**: Clean printing with interface hidden
 
 ### Example Input
 
@@ -49,8 +56,10 @@ Reference population
 
 - **Frontend**: Pure HTML, CSS, and JavaScript (ES6 modules)
 - **Chart Engine**: Mermaid.js v10
-- **Padding Method**: Character-based padding with even distribution
-- **Debug Mode**: Uses 'X' characters for visual padding debugging
+- **Padding Method**: Invisible character padding with even distribution
+- **Export Libraries**: PDFKit + SVG-to-PDFKit for PDF generation
+- **Arrow Handling**: Custom arrow marker conversion for PDF compatibility
+- **Text Centering**: Automatic text centering within nodes
 
 ## File Structure
 
@@ -74,10 +83,34 @@ flowchart/
 
 This is a client-side only application. Simply open `index.html` in a web browser - no build process or server required.
 
+## Advanced Usage
+
+### Creating Two-Column Flowcharts
+
+This automator creates only one-column vertical flowcharts. To create inclusion/exclusion flowcharts with two columns:
+
+1. Create two separate one-column flowcharts
+2. Export both as SVG
+3. Arrange them side by side in vector software like Inkscape (free)
+4. **Important**: Ungroup the objects many times in Inkscape to get granular control
+
+### Export Tips
+
+- **SVG Export**: Best for further editing and vector graphics
+- **PNG Export**: High-resolution raster images (5x scaling for crisp output)
+- **PDF Export**: Includes custom arrow handling for proper arrowhead display
+- **Print**: Clean output with all interface elements hidden
+
 ## License
 
-MIT License - see LICENSE file for details.
+CC BY-SA 4.0 - Creative Commons Attribution-ShareAlike 4.0 International License
+
+This web app uses Mermaid.js (MIT) under the hood for flowchart rendering.
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests!
+Feel free to submit issues and enhancement requests! This project is open source and welcomes contributions.
+
+## Author
+
+Ville Langén, 2025
